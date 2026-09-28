@@ -1,0 +1,75 @@
+# XcodeGen spec — run `xcodegen generate` on a Mac to produce Sol.xcodeproj, then open in Xcode.
+# See README.md. Set DEVELOPMENT_TEAM (your Apple team id) before archiving.
+name: Sol
+options:
+  bundleIdPrefix: co.wiseant.sol
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: ""            # ← your 10-char Apple Developer Team ID
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+
+  # Shared code used by both the app and the keyboard extension.
+  SolKit:
+    type: framework
+    platform: iOS
+    sources: [Sources/SolKit]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: co.wiseant.sol.kit
+
+  # The host app: onboarding, settings (proxy token, language), standalone dictate-and-copy.
+  Sol:
+    type: application
+    platform: iOS
+    sources: [Sources/SolApp]
+    dependencies:
+      - target: SolKit
+      - target: SolKeyboard        # embeds the keyboard extension
+    info:
+      path: Sources/SolApp/Info.plist
+      properties:
+        CFBundleDisplayName: Sol
+        UILaunchScreen: {}
+        NSMicrophoneUsageDescription: "Sol uses the microphone to turn your speech into text."
+    entitlements:
+      path: Sources/SolApp/Sol.entitlements
+      properties:
+        com.apple.security.application-groups: [group.co.wiseant.sol]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: co.wiseant.sol.app
+
+  # The Sol Keyboard: the only way to type into any app. Mic button → proxy → insert text.
+  SolKeyboard:
+    type: app-extension
+    platform: iOS
+    sources: [Sources/SolKeyboard]
+    dependencies:
+      - target: SolKit
+    info:
+      path: Sources/SolKeyboard/Info.plist
+      properties:
+        CFBundleDisplayName: Sol Keyboard
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.keyboard-service
+          NSExtensionPrincipalClass: SolKeyboard.KeyboardViewController
+          NSExtensionAttributes:
+            IsASCIICapable: false
+            PrefersRightToLeft: false
+            PrimaryLanguage: en-US
+            RequestsOpenAccess: true      # Full Access — required for network (proxy) + mic
+    entitlements:
+      path: Sources/SolKeyboard/SolKeyboard.entitlements
+      properties:
+        com.apple.security.application-groups: [group.co.wiseant.sol]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: co.wiseant.sol.app.keyboard
